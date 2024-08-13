@@ -3,31 +3,26 @@ import type { AppProps } from 'next/app'
 import merge from 'lodash.merge'
 
 import '@rainbow-me/rainbowkit/styles.css';
-import { getDefaultWallets, lightTheme, RainbowKitProvider, Theme } from '@rainbow-me/rainbowkit';
-import { polygonMumbai } from 'viem/chains';
-import { configureChains, createConfig, WagmiConfig } from 'wagmi';
-import { alchemyProvider } from 'wagmi/providers/alchemy';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { WagmiProvider, http } from 'wagmi'
+import { mainnet } from 'wagmi/chains'
+import { lightTheme, RainbowKitProvider, Theme } from '@rainbow-me/rainbowkit'
+import { getDefaultConfig } from '@rainbow-me/rainbowkit'
+
 import { Navbar } from '@/ui/components/app/navbar';
 
 const projectId = process.env.NEXT_PUBLIC_PROJECT_ID || ""
 
-const { chains, publicClient, webSocketPublicClient } = configureChains(
-  [polygonMumbai],
-  [alchemyProvider({apiKey: process.env.NEXT_PUBLIC_ALCHEMY_KEY!})],
-)
-
-const { connectors } = getDefaultWallets({
+const config = getDefaultConfig({
   appName: 'Custom Dex',
-  projectId: projectId!,
-  chains
+  projectId: projectId,
+  chains: [mainnet],
+  transports: {
+    [mainnet.id]: http(),
+  },
 })
 
-const config = createConfig({
-  autoConnect: true,
-  connectors,
-  publicClient,
-  webSocketPublicClient,
-})
+const queryClient = new QueryClient()
 
 const myTheme: Theme = merge(lightTheme(), {
   colors: {
@@ -38,11 +33,13 @@ const myTheme: Theme = merge(lightTheme(), {
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <WagmiConfig config={config}>
-      <RainbowKitProvider chains={chains} theme={myTheme}>
-        <Navbar />
-        <Component {...pageProps} />
-      </RainbowKitProvider>
-    </WagmiConfig>
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider>
+          <Navbar />
+          <Component {...pageProps} />
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   )
 }
